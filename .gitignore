@@ -1,3 +1,73 @@
+===========================
+
+Project Watchtower - Ignore List
+
+===========================
+
+--- SECTION 1: WAZUH INFRASTRUCTURE (CRITICAL) ---
+
+These are the volume mounts from our docker-compose.
+
+Fulfills the "Zero Trust" requirement: never commit operational data or certs.
+
+1. Persistent Data Volumes (Massive files, DO NOT COMMIT)
+
+wazuh-indexer-data/
+wazuh-manager-data/
+wazuh-dashboard-config/
+
+2. Security Assets (Generated Certs & Keys)
+
+wazuh_certs/
+*.pem
+*.key
+*.p12
+*.csr
+
+3. Environment & Secrets
+
+.env
+.env.local
+
+--- SECTION 2: SCRIPTING & DEV JUNK (OPTIONAL BUT RECOMMENDED) ---
+
+Since we might write Python automation scripts for the Z220/Ryzen agents.
+
+Python
+
+pycache/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+Node/Web (Just in case we touch the dashboard plugins)
+
+node_modules/
+npm-debug.log*
+
+--- SECTION 3: OS & EDITOR JUNK ---
+
+# Standard noise removal.
+
+# Mac/Linux
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs
+
+.vscode/
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
