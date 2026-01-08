@@ -1,70 +1,156 @@
 # 🛡️ The Watchtower
 
-**A Portable, Containerized Security Operations Center (SOC) for the North Metro Tech Cluster.**
+**A Portable, Production-Ready SIEM Stack for SMB Security Operations**
 
-## 📖 Executive Summary
-"The Watchtower" is a strategic initiative to deploy an enterprise-grade SIEM (Security Information and Event Management) system on dedicated, recycled hardware. By isolating security monitoring to a physical node, we ensure that audit logs remain secure even if the primary production servers are compromised.
+> *"Enterprise-grade security monitoring on recycled hardware — because defense-in-depth shouldn't require a defense budget."*
 
-This repository contains the Infrastructure-as-Code (IaC) required to deploy the **Wazuh** single-node stack via Docker, tuned specifically for resource-constrained environments.
+## 📖 Overview
+
+The Watchtower is a containerized Security Operations Center (SOC) designed for resource-constrained environments. Built on Wazuh v4.14.1, this single-node deployment provides:
+
+- **Real-time threat detection** across your infrastructure
+- **File integrity monitoring** for critical assets
+- **Compliance reporting** (CIS, PCI-DSS, GDPR)
+- **Centralized log aggregation** from distributed agents
+
+Perfect for SMBs, home labs, or MSP service offerings.
 
 ## 🏗️ Architecture
 
-### The Node (Hardware)
-* **Model:** HP EliteBook 820 G2
-* **CPU:** Intel Core i7-5600U
-* **RAM:** 16GB (DDR3)
-* **Storage:** 256GB SATA SSD
-* **OS:** Ubuntu 25.10 (Kernel 6.x)
+### Hardware Specifications
+- **Platform:** HP EliteBook 820 G2 (or equivalent)
+- **CPU:** Intel Core i7-5600U (2C/4T @ 2.6GHz)
+- **RAM:** 16GB DDR3
+- **Storage:** 256GB SATA SSD
+- **Network:** Gigabit Ethernet (Static IP: 192.168.0.200)
 
-### The Stack (Software)
-* **Orchestration:** Docker Compose (v2)
-* **SIEM Engine:** Wazuh Manager (Latest)
-* **Indexer:** OpenSearch (Single-node cluster)
-* **Visualization:** Wazuh Dashboard
+### Software Stack
+| Component | Purpose | Version |
+|-----------|---------|---------|
+| **Wazuh Manager** | SIEM engine, log processing, alerting | 4.14.1 |
+| **OpenSearch** | Event indexing and search backend | 2.13.0 |
+| **Wazuh Dashboard** | Web UI for visualization and management | 4.14.1 |
 
-### Network Role
-The Watchtower sits on the local LAN (Static IP: `192.168.0.200`) and ingests logs via the Wazuh Agent from:
-1. **Z220 World Server:** Hosting the Neo4j Graph Database.
-2. **Ryzen Dev Rig:** Hosting Unity Blueprints and Game Assets.
-
-## 🎯 Key Capabilities
-* **File Integrity Monitoring (FIM):** Real-time alerts on unauthorized changes to `/Allogaia/Content/` and wallet keys.
-* **Log Analysis:** Centralized ingestion of system auth logs, docker container logs, and application events.
-* **Compliance:** Automated reporting against CIS Benchmark standards for Linux hosts.
-
-## ⚙️ Operational Constraints (LEAN Tuning)
-This stack runs on the "bare minimum" hardware requirements for a Java-based SIEM. The configuration includes specific tuning to prevent OOM (Out of Memory) kills:
-* **Java Heap Limits:** OpenSearch is hard-capped at 4GB RAM (`OPENSEARCH_JAVA_OPTS="-Xms4g -Xmx4g"`).
-* **Log Retention:** Aggressive rotation policies (>7 days deletion) to preserve SATA SSD I/O bandwidth.
-* **Visualization:** Resource-heavy Kibana/Dashboard visualizers are disabled by default.
-
-## 🚀 Deployment
-
-### Prerequisites
-* Ubuntu Host with Docker Engine & Docker Compose installed.
-* `vm.max_map_count` set to `262144` (Required for OpenSearch).
-
-### Quick Start
-```bash
-# 1. Clone the repository
-git clone [https://github.com/your-username/the-watchtower.git](https://github.com/your-username/the-watchtower.git)
-cd the-watchtower
-
-# 2. Generate generic certs (if not present)
-docker-compose -f generate-indexer-certs.yml run --rm generator
-
-# 3. Launch the stack
-docker-compose up -d
-
-# 4. Access Dashboard
-# [https://192.168.0.200](https://192.168.0.200)
+### Network Topology
+```
+[Internet] → [Firewall] → [Switch]
+                             ├─ [Watchtower: 192.168.0.200] (SIEM Node)
+                             ├─ [Z220 Workstation] (Wazuh Agent)
+                             └─ [Ryzen Dev Rig] (Wazuh Agent)
 ```
 
+## ⚡ Quick Start
+
+### Prerequisites
+```bash
+# Install Docker and Docker Compose
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin git
+
+# Add your user to docker group (logout/login required)
+sudo usermod -aG docker $USER
+
+# Set system tuning for OpenSearch
+sudo sysctl -w vm.max_map_count=262144
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.d/99-wazuh.conf
+```
+
+### Deployment (10-Minute Install)
+```bash
+# Clone official Wazuh Docker repository
+# Check here for latest https://documentation.wazuh.com/current/deployment-options/docker/wazuh-container.html
+git clone https://github.com/wazuh/wazuh-docker.git -b v4.14.1 
+cd wazuh-docker/single-node
+
+# Generate SSL certificates
+docker compose -f generate-indexer-certs.yml run --rm generator
+
+# Deploy the stack
+docker compose up -d
+
+# Verify all services are running
+docker compose ps
+```
+
+### Access the Dashboard
+- **URL:** `https://192.168.0.200` (or your server IP)
+- **Username:** `admin`
+- **Password:** `SecretPassword` (⚠️ **Change this immediately**)
+
+## 🎯 Use Cases
+
+### 1. **Personal Lab Security**
+Monitor your home lab infrastructure with professional-grade tools. Track:
+- SSH brute force attempts
+- Unauthorized file modifications
+- Container security events
+- System configuration drift
+
+### 2. **SMB Managed Security**
+Offer Watchtower as a managed service:
+- **Monthly Retainer:** $500-800/mo for 24/7 monitoring
+- **Compliance Reports:** Automated CIS benchmark reporting for cyber insurance
+- **Incident Response:** Alert escalation when anomalies detected
+
+### 3. **Red Team Training**
+Use Wazuh's detection capabilities to:
+- Test evasion techniques against modern SIEM
+- Understand how blue teams detect lateral movement
+- Practice operational security (OPSEC) tradecraft
+
+## 🔧 Advanced Configuration
+
+### Agent Deployment
+Deploy Wazuh agents to monitored endpoints:
+```bash
+# On Ubuntu/Debian agent
+curl -so wazuh-agent.deb https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.14.1-1_amd64.deb
+sudo WAZUH_MANAGER='192.168.0.200' dpkg -i wazuh-agent.deb
+sudo systemctl enable wazuh-agent && sudo systemctl start wazuh-agent
+```
+
+### Custom Rules
+File integrity monitoring for game assets:
+```xml
+<!-- /var/ossec/etc/rules/local_rules.xml -->
+<group name="allogaia_fim,">
+  <rule id="100001" level="12">
+    <if_sid>550</if_sid>
+    <field name="file">^/Allogaia/Content/</field>
+    <description>Critical game asset modified: $(file)</description>
+  </rule>
+</group>
+```
+
+## ⚠️ Known Issues & Gotchas
+
+### Version Compatibility
+**CRITICAL:** Use v4.14.1 or later. Earlier versions (v4.9.0) have broken certificate generation that causes 5+ hour debugging sessions. See [LESSONS_LEARNED.md](LESSONS_LEARNED.md) for the full story.
+
+### Resource Constraints
+- Minimum 8GB RAM required (16GB recommended)
+- Elasticsearch requires `vm.max_map_count=262144`
+- SSD strongly recommended for log ingestion performance
+
+## 📚 Documentation
+
+- [Official Wazuh Docs](https://documentation.wazuh.com/)
+- [Agent Deployment Guide](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/index.html)
+- [CIS Compliance Scanning](https://documentation.wazuh.com/current/user-manual/capabilities/policy-monitoring/ciscat/ciscat.html)
+
+## 🤝 Contributing
+
+This is a portfolio/reference implementation. For production deployments:
+1. Change default passwords
+2. Enable TLS/SSL with proper certificates
+3. Configure firewall rules (only allow agent connections on port 1514)
+4. Set up log retention policies based on compliance requirements
+
 ## 📜 License
-MIT License. See [LICENSE](LICENSE) for details.
+
+MIT License - See [LICENSE](LICENSE) for details.
 
 ---
-*Maintained by the North Metro Tech R&D Team.*
-EOF
 
-echo "✅ README.md has been generated."
+**Built with:** Docker, Wazuh, OpenSearch, Late nights, ADHD hyperfocus  
+**Maintained by:** Aaron Clifft | Cybersecurity GRC Professional transitioning from 10+ years electrical/PM background
